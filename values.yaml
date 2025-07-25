@@ -1,0 +1,75 @@
+replicaCount: 1
+region: ORD1
+name: bind-dns
+image:
+  image: internetsystemsconsortium/bind9
+  pullPolicy: IfNotPresent
+  tag: 9.21
+
+imageConfig:
+  pullPolicy: IfNotPresent
+
+service:
+  type: NodePort
+  port: 53
+  targetPort: 53
+  labels:
+
+# resources:
+#   requests:
+#     memory: 1Gi
+#     cpu: 300m
+
+readinessProbe:
+  enabled: false
+livenessProbe:
+  enabled: false
+
+bindzones:
+  ML1.internal: |
+      $TTL    604800
+      @       IN      SOA     ns1.ML1.internal. admin.ML1.internal. (
+                                    5         ; Serial
+                               604800         ; Refresh
+                                86400         ; Retry
+                              2419200         ; Expire
+                               604800 )       ; Negative Cache TTL
+      
+      @                        IN      NS      ns.ML1.internal.
+      ns                       IN      CNAME   bind-dns-udp.default.svc.cluster1.local
+      rke00.mgr                IN      A       10.24.0.99
+      rke01.mgr                IN      A       10.24.0.100
+      rke-lb.mgr               IN      A       100.69.29.9
+
+bindconfig:
+  named.conf: |
+    options {
+            directory "/var/cache/bind";
+            listen-on port 53 { any; };
+            auth-nxdomain yes;
+            forwarders { 
+                    1.1.1.1; 
+                    1.0.0.1; 
+            };
+            listen-on-v6 { any; };
+            allow-query { any; };
+            allow-recursion {
+                    any;
+            };
+            allow-transfer {
+                    none;
+            };
+            allow-update {
+                    any;
+            };
+    };
+
+    zone "ML1.internal" {
+      type master;
+      file "/var/lib/bind/ML1.internal";
+    };
+
+zoneconfigs:
+  items:                 
+  - key: ML1.internal
+    path: ML1.internal
