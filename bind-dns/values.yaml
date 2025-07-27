@@ -63,10 +63,14 @@ bindconfig:
                     any;
             };
     };
-
+    key "externaldns-key" {
+        algorithm hmac-sha256;
+        secret "7dvscDQ0e6pwtQKclp4FUCDXcXUXMJBZaEd5qCCYlqM=";
+    };
     zone "ML1.internal" {
       type master;
       file "/var/lib/bind/ML1.internal";
+      allow-update { key "externaldns-key";};
     };
 
 zoneconfigs:

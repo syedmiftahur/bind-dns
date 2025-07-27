@@ -1,0 +1,116 @@
+---
+# Source: external-dns/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: external-dns
+  labels:
+    helm.sh/chart: external-dns-0.1.0
+    app.kubernetes.io/name: external-dns
+    app.kubernetes.io/instance: external-dns
+    app.kubernetes.io/version: "1.16.0"
+    app.kubernetes.io/managed-by: Helm
+automountServiceAccountToken: true
+---
+# Source: external-dns/templates/serviceaccount.yaml
+kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: external-dns
+rules:
+  - apiGroups: [""]
+    resources: ["services","endpoints"]
+    verbs: ["get","watch","list"]
+---
+# Source: external-dns/templates/serviceaccount.yaml
+kind: ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: external-dns
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: external-dns
+subjects:
+  - kind: ServiceAccount
+    name: external-dns
+---
+# Source: external-dns/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: external-dns
+  labels:
+    helm.sh/chart: external-dns-0.1.0
+    app.kubernetes.io/name: external-dns
+    app.kubernetes.io/instance: external-dns
+    app.kubernetes.io/version: "1.16.0"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: ClusterIP
+  ports:
+    - port: 80
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    app.kubernetes.io/name: external-dns
+    app.kubernetes.io/instance: external-dns
+---
+# Source: external-dns/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: external-dns
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: external-dns
+  template:
+    metadata:
+      labels:
+        app: external-dns
+    spec:
+      serviceAccountName: external-dns
+      containers:
+      - name: external-dns
+        image: k8s.gcr.io/external-dns/external-dns:latest
+        args:
+        - --provider=rfc2136
+        - --rfc2136-host=bind-dns-udp.default.svc.cluster1.local         # e.g. bind-dns.default.svc.cluster.local
+        - --rfc2136-port=53
+        - --rfc2136-zone=ML1.internal
+        - --rfc2136-tsig-secret=$(TSIG_SECRET)
+        - --rfc2136-tsig-secret-alg=hmac-sha256
+        - --rfc2136-tsig-keyname=externaldns-key
+        - --domain-filter=ML1.internal
+        - --registry=txt
+        - --txt-owner-id=external-dns
+        env:
+        - name: TSIG_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: externaldns-tsig-secret
+              key: tsig-secret
+---
+# Source: external-dns/templates/tests/test-connection.yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: "external-dns-test-connection"
+  labels:
+    helm.sh/chart: external-dns-0.1.0
+    app.kubernetes.io/name: external-dns
+    app.kubernetes.io/instance: external-dns
+    app.kubernetes.io/version: "1.16.0"
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+    "helm.sh/hook": test
+spec:
+  containers:
+    - name: wget
+      image: busybox
+      command: ['wget']
+      args: ['external-dns:80']
+  restartPolicy: Never
