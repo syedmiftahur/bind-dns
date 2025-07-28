@@ -1,7 +1,28 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: {{ include "bind-dns.name" . }}-tcpudp
+  name: {{ include "bind-dns.name" . }}-tcp
+  labels:
+    {{- include "bind-dns.labels" . | nindent 4 }}
+  {{- if .Values.service.annotations }}
+  annotations:
+    {{- toYaml .Values.service.annotations | nindent 4 }}
+    {{- end }}
+spec:
+  type: {{ .Values.service.type }}
+  externalTrafficPolicy: Local
+  ports:
+    - port: {{ .Values.service.targetPort }}
+      targetPort: {{ .Values.service.targetPort }}
+      protocol: TCP
+      name: dns-tcp
+  selector:
+    {{- include "bind-dns.selectorLabels" . | nindent 4 }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "bind-dns.name" . }}-udp
   annotations:
     external-dns.alpha.kubernetes.io/hostname: ns.ML1.internal.
     external-dns.alpha.kubernetes.io/ttl: "300"
@@ -18,9 +39,5 @@ spec:
       targetPort: {{ .Values.service.targetPort }}
       protocol: UDP
       name: dns-udp
-    - port: {{ .Values.service.targetPort }}
-      targetPort: {{ .Values.service.targetPort }}
-      protocol: TCP
-      name: dns-tcp
   selector:
     {{- include "bind-dns.selectorLabels" . | nindent 4 }}

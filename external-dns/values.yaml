@@ -190,7 +190,7 @@ validation:
 rfc2136:
   ## @param rfc2136.host When using the rfc2136 provider, specify the RFC2136 host (required when provider=rfc2136)
   ##
-  host: "bind-dns-udp.default.svc.cluster1.local"         # e.g. bind-dns.default.svc.cluster.local
+  host: "bind-dns-tcpudp.default.svc.cluster1.local"         # e.g. bind-dns.default.svc.cluster.local
 
   ## @param rfc2136.port When using the rfc2136 provider, specify the RFC2136 port (optional)
   ##
@@ -205,7 +205,7 @@ rfc2136:
     - ML1.internal
   ## @param rfc2136.tsigSecret When using the rfc2136 provider, specify the tsig secret to enable security. (do not specify if `rfc2136.secretName` is provided.) (optional)
   ##
-  tsigSecret: "N2R2c2NEUTBlNnB3dFFLY2xwNEZVQ0RYY1hVWE1KQlphRWQ1cUNDWWxxTT0="
+  tsigSecret: "NI5Pc2N0JM+lWiWsCBU38SJysdmkrvGn0VfifD6uup0="
   ## @param rfc2136.secretName When using the rfc2136 provider, specify the existing secret which contains your tsig secret in the key "rfc2136_tsig_secret". Disables the usage of `rfc2136.tsigSecret` (optional)
   ##
   secretName: ""
@@ -217,7 +217,7 @@ rfc2136:
   tsigKeyname: externaldns-key
   ## @param rfc2136.tsigAxfr When using the rfc2136 provider, enable AFXR to enable security (optional)
   ##
-  tsigAxfr: true
+  tsigAxfr: false
   ## @param rfc2136.minTTL When using the rfc2136 provider, specify minimal TTL (in duration format) for records[ns, us, ms, s, m, h], see more <https://golang.org/pkg/time/#ParseDuration>
   ##
   minTTL: "60s"

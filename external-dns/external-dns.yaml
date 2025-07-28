@@ -1,0 +1,359 @@
+---
+# Source: external-dns/templates/pdb.yaml
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: external-dns
+  namespace: "default"
+  labels:
+    app.kubernetes.io/instance: external-dns
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: external-dns
+    app.kubernetes.io/version: 0.18.0
+    helm.sh/chart: external-dns-8.9.1
+spec:
+  maxUnavailable: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/instance: external-dns
+      app.kubernetes.io/name: external-dns
+---
+# Source: external-dns/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: external-dns
+  namespace: "default"
+  labels:
+    app.kubernetes.io/instance: external-dns
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: external-dns
+    app.kubernetes.io/version: 0.18.0
+    helm.sh/chart: external-dns-8.9.1
+automountServiceAccountToken: false
+---
+# Source: external-dns/templates/secret.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: external-dns
+  namespace: "default"
+  labels:
+    app.kubernetes.io/instance: external-dns
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: external-dns
+    app.kubernetes.io/version: 0.18.0
+    helm.sh/chart: external-dns-8.9.1
+type: Opaque
+data:
+  rfc2136_tsig_secret: "NI5Pc2N0JM+lWiWsCBU38SJysdmkrvGn0VfifD6uup0="
+  rfc2136_kerberos_username: ""
+  rfc2136_kerberos_password: ""
+---
+# Source: external-dns/templates/clusterrole.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: external-dns-default
+  labels:
+    app.kubernetes.io/instance: external-dns
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: external-dns
+    app.kubernetes.io/version: 0.18.0
+    helm.sh/chart: external-dns-8.9.1
+rules:
+  - apiGroups:
+      - ""
+    resources:
+      - services
+      - pods
+      - nodes
+      - namespaces
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups: 
+      - "discovery.k8s.io"
+    resources: 
+      - endpointslices
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - extensions
+      - "networking.k8s.io"
+      - getambassador.io
+    resources:
+      - ingresses
+      - hosts
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - route.openshift.io
+    resources:
+      - routes
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - networking.istio.io
+    resources:
+      - gateways
+      - virtualservices
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - zalando.org
+    resources:
+      - routegroups
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - zalando.org
+    resources:
+      - routegroups/status
+    verbs:
+      - patch
+      - update
+  - apiGroups:
+      - projectcontour.io
+    resources:
+      - httpproxies
+    verbs:
+      - get
+      - watch
+      - list
+  - apiGroups:
+      - gloo.solo.io
+      - gateway.solo.io
+    resources:
+      - proxies
+      - virtualservices
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - configuration.konghq.com
+    resources:
+      - tcpingresses
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - gateway.networking.k8s.io
+    resources:
+      - gateways
+      - httproutes
+      - tlsroutes
+      - tcproutes
+      - udproutes
+      - grpcroutes
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - cis.f5.com
+    resources:
+      - virtualservers
+      - transportservers
+    verbs:
+      - get
+      - watch
+      - list
+---
+# Source: external-dns/templates/clusterrolebinding.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: external-dns-default
+  labels:
+    app.kubernetes.io/instance: external-dns
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: external-dns
+    app.kubernetes.io/version: 0.18.0
+    helm.sh/chart: external-dns-8.9.1
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: external-dns-default
+subjects:
+  - kind: ServiceAccount
+    name: external-dns
+    namespace: "default"
+---
+# Source: external-dns/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: external-dns
+  namespace: "default"
+  labels:
+    app.kubernetes.io/instance: external-dns
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: external-dns
+    app.kubernetes.io/version: 0.18.0
+    helm.sh/chart: external-dns-8.9.1
+spec:
+  type: ClusterIP
+  sessionAffinity: None
+  ports:
+    - name: http
+      port: 7979
+      protocol: TCP
+      targetPort: http
+  selector:
+    app.kubernetes.io/instance: external-dns
+    app.kubernetes.io/name: external-dns
+---
+# Source: external-dns/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: external-dns
+  namespace: "default"
+  labels:
+    app.kubernetes.io/instance: external-dns
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: external-dns
+    app.kubernetes.io/version: 0.18.0
+    helm.sh/chart: external-dns-8.9.1
+spec:
+  revisionHistoryLimit: 10
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/instance: external-dns
+      app.kubernetes.io/name: external-dns
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/instance: external-dns
+        app.kubernetes.io/managed-by: Helm
+        app.kubernetes.io/name: external-dns
+        app.kubernetes.io/version: 0.18.0
+        helm.sh/chart: external-dns-8.9.1
+      annotations:
+        checksum/secret: 89e8fa4e1e4af35809e59fad34cb66c53ce5a0370835a01b811b1e52a239e2b4
+    spec:
+      
+      securityContext:
+        fsGroup: 1001
+        fsGroupChangePolicy: Always
+        supplementalGroups: []
+        sysctls: []
+      affinity:
+        podAffinity:
+          
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - podAffinityTerm:
+                labelSelector:
+                  matchLabels:
+                    app.kubernetes.io/instance: external-dns
+                    app.kubernetes.io/name: external-dns
+                topologyKey: kubernetes.io/hostname
+              weight: 1
+        nodeAffinity:
+          
+      automountServiceAccountToken: true
+      serviceAccountName: external-dns
+      containers:
+        - name: external-dns
+          image: docker.io/bitnami/external-dns:0.18.0-debian-12-r0
+          imagePullPolicy: "IfNotPresent"
+          args:
+            # Generic arguments
+            - --metrics-address=:7979
+            - --log-level=debug
+            - --log-format=text
+            - --namespace=default
+            - --service-type-filter=LoadBalancer
+            - --domain-filter=ML1.internal
+            - --policy=sync
+            - --provider=rfc2136
+            - --registry=txt
+            - --interval=1m
+            - --source=service
+            # RFC 2136 arguments
+            - --rfc2136-host=bind-dns-tcpudp.default.svc.cluster1.local
+            - --rfc2136-port=53
+            - --rfc2136-zone=ML1.internal
+            - --rfc2136-min-ttl=60s
+            - --rfc2136-tsig-secret-alg=hmac-sha256
+            - --rfc2136-tsig-keyname=externaldns-key
+            --rfc2136-tsig-secret="NI5Pc2N0JM+lWiWsCBU38SJysdmkrvGn0VfifD6uup0="
+          env:
+            # RFC 2136 environment variables
+            - name: EXTERNAL_DNS_RFC2136_TSIG_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: external-dns
+                  key: rfc2136_tsig_secret
+            
+          envFrom:
+          ports:
+            - name: http
+              containerPort: 7979
+          livenessProbe:
+            tcpSocket:
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 5
+            successThreshold: 1
+            failureThreshold: 2
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 5
+            successThreshold: 1
+            failureThreshold: 6
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+              - ALL
+            privileged: false
+            readOnlyRootFilesystem: true
+            runAsGroup: 1001
+            runAsNonRoot: true
+            runAsUser: 1001
+            seLinuxOptions: {}
+            seccompProfile:
+              type: RuntimeDefault
+          resources:
+            limits:
+              cpu: 150m
+              ephemeral-storage: 2Gi
+              memory: 192Mi
+            requests:
+              cpu: 100m
+              ephemeral-storage: 50Mi
+              memory: 128Mi
+          volumeMounts:
+            - name: empty-dir
+              mountPath: /tmp
+              subPath: tmp-dir
+      volumes:
+        - name: empty-dir
+          emptyDir: {}
+---
+# Source: external-dns/templates/crds/crd.yaml
+# Source: https://raw.githubusercontent.com/kubernetes-sigs/external-dns/refs/tags/v{version}/config/crd/standard/dnsendpoints.externaldns.k8s.io.yaml
+# Version: 0.18.0
+# Conditional: .Values.crd.create

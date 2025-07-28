@@ -21,10 +21,27 @@ spec:
     spec:
       affinity:
         {{- toYaml .Values.affinity | nindent 8 }}
+      initContainers:    # introducing init container to copy zone into /etc/bind/zones as an empty directory editable
+      - name: init-config
+        image: busybox
+        command: ['sh', '-c', 'cp /config-source/* /etc/bind/zones/']
+        volumeMounts:
+        - name: bind-zone-config
+          mountPath: /config-source
+        - name: bind-zones
+          mountPath: /etc/bind/zones       
       containers:
         - name: {{ .Values.name }}-bind
           image: {{ .Values.image.image }}:{{ .Values.image.tag }}
           imagePullPolicy: IfNotPresent
+          command:
+            - /bin/sh
+            - -c
+            - |
+              chown -R bind:bind /etc/bind/zones
+              /usr/sbin/named -g -u bind
+          securityContext: # security context introduced to run as root temporarily to fix permissions
+            runAsUser: 0
           ports:
             - name: dns-tcp
               containerPort: {{ .Values.service.targetPort }}
@@ -51,8 +68,10 @@ spec:
           volumeMounts:
           - name: bind-config
             mountPath: /etc/bind
-          - name: bind-zone-config
-            mountPath: /var/lib/bind
+          - name: bind-zones
+            mountPath: /etc/bind/zones
+         #- name: bind-zone-config
+         #   mountPath: /var/lib/bind
       volumes:
         - name: bind-config
           configMap:
@@ -64,3 +83,5 @@ spec:
           configMap:
             name: bind-zone-config
                   {{- toYaml .Values.zoneconfigs | nindent 12 }}
+        - name: bind-zones
+          emptyDir: {}

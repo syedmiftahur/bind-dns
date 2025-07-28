@@ -18,10 +18,12 @@ data:
     port 53 { any; };\n        auth-nxdomain yes;\n        forwarders { \n                1.1.1.1;
     \n                1.0.0.1; \n        };\n        listen-on-v6 { any; };\n        allow-query
     { any; };\n        allow-recursion {\n                any;\n        };\n        allow-transfer
-    {\n                none;\n        };\n        allow-update {\n                any;\n
+    {\n                any;\n        };\n        allow-update {\n                any;\n
     \       };\n};\nkey \"externaldns-key\" {\n    algorithm hmac-sha256;\n    secret
-    \"7dvscDQ0e6pwtQKclp4FUCDXcXUXMJBZaEd5qCCYlqM=\";\n};\nzone \"ML1.internal\" {\n
-    \ type master;\n  file \"/var/lib/bind/ML1.internal\";\n  allow-update { key \"externaldns-key\";};\n};\n"
+    \"NI5Pc2N0JM+lWiWsCBU38SJysdmkrvGn0VfifD6uup0=\";\n};\n\n#    key \"externaldns-key\"
+    {\n#    algorithm hmac-sha256;\n#    secret \"7dvscDQ0e6pwtQKclp4FUCDXcXUXMJBZaEd5qCCYlqM=\";\n#
+    };\nzone \"ML1.internal\" {\n  type master;\n  file \"/etc/bind/zones/ML1.internal\";\n
+    \ allow-update { key \"externaldns-key\";};\n};\n"
 ---
 # Source: bind-dns/templates/configmap.yaml
 apiVersion: v1
@@ -39,7 +41,6 @@ data:
                              604800 )       ; Negative Cache TTL
   
     @                        IN      NS      ns.ML1.internal.
-    ns                       IN      CNAME   bind-dns-udp.default.svc.cluster1.local
     rke00.mgr                IN      A       10.24.0.99
     rke01.mgr                IN      A       10.24.0.100
     rke-lb.mgr               IN      A       100.69.29.9
@@ -48,30 +49,7 @@ data:
 apiVersion: v1
 kind: Service
 metadata:
-  name: bind-dns-tcp
-  labels:
-    helm.sh/chart: bind-dns-0.1.0
-    app.kubernetes.io/name: bind-dns
-    app.kubernetes.io/instance: bind-dns
-    app.kubernetes.io/version: "1.16.0"
-    app.kubernetes.io/managed-by: Helm
-spec:
-  type: NodePort
-  externalTrafficPolicy: Local
-  ports:
-    - port: 53
-      targetPort: 53
-      protocol: TCP
-      name: dns-tcp
-  selector:
-    app.kubernetes.io/name: bind-dns
-    app.kubernetes.io/instance: bind-dns
----
-# Source: bind-dns/templates/service.yaml
-apiVersion: v1
-kind: Service
-metadata:
-  name: bind-dns-udp
+  name: bind-dns-tcpudp
   annotations:
     external-dns.alpha.kubernetes.io/hostname: ns.ML1.internal.
     external-dns.alpha.kubernetes.io/ttl: "300"
@@ -82,12 +60,16 @@ metadata:
     app.kubernetes.io/version: "1.16.0"
     app.kubernetes.io/managed-by: Helm
 spec:
-  type: NodePort
+  type: LoadBalancer
   ports:
     - port: 53
       targetPort: 53
       protocol: UDP
       name: dns-udp
+    - port: 53
+      targetPort: 53
+      protocol: TCP
+      name: dns-tcp
   selector:
     app.kubernetes.io/name: bind-dns
     app.kubernetes.io/instance: bind-dns
@@ -108,17 +90,33 @@ spec:
       app.kubernetes.io/instance: bind-dns
   template:
     metadata:
-      roll: "71ZF5"
+      roll: "iICWy"
       labels:
         app.kubernetes.io/name: bind-dns
         app.kubernetes.io/instance: bind-dns
     spec:
       affinity:
         null
+      initContainers:    # introducing init container to copy zone into /etc/bind/zones as an empty directory editable
+      - name: init-config
+        image: busybox
+        command: ['sh', '-c', 'cp /config-source/* /etc/bind/zones/']
+        volumeMounts:
+        - name: bind-zone-config
+          mountPath: /config-source
+        - name: bind-zones
+          mountPath: /etc/bind/zones       
       containers:
         - name: bind-dns-bind
           image: internetsystemsconsortium/bind9:9.21
           imagePullPolicy: IfNotPresent
+          securityContext: # security context introduced to run as root temporarily to fix permissions
+            runAsUser: 0
+    #     command:
+    #        - /bin/sh
+    #        - -c
+    #        - |
+    #          chown -R bind:bind /etc/bind/zones
           ports:
             - name: dns-tcp
               containerPort: 53
@@ -131,8 +129,10 @@ spec:
           volumeMounts:
           - name: bind-config
             mountPath: /etc/bind
-          - name: bind-zone-config
-            mountPath: /var/lib/bind
+          - name: bind-zones
+            mountPath: /etc/bind/zones
+         #- name: bind-zone-config
+         #   mountPath: /var/lib/bind
       volumes:
         - name: bind-config
           configMap:
@@ -146,6 +146,8 @@ spec:
             items:
             - key: ML1.internal
               path: ML1.internal
+        - name: bind-zones
+          emptyDir: {}
 ---
 # Source: bind-dns/templates/tests/test-connection.yaml
 apiVersion: v1

@@ -10,7 +10,7 @@ imageConfig:
   pullPolicy: IfNotPresent
 
 service:
-  type: NodePort
+  type: LoadBalancer
   port: 53
   targetPort: 53
   labels:
@@ -28,7 +28,7 @@ livenessProbe:
 bindzones:
   ML1.internal: |
       $TTL    604800
-      @       IN      SOA     ns1.ML1.internal. admin.ML1.internal. (
+      @       IN      SOA     ns.ML1.internal. admin.ML1.internal. (
                                     5         ; Serial
                                604800         ; Refresh
                                 86400         ; Retry
@@ -36,7 +36,7 @@ bindzones:
                                604800 )       ; Negative Cache TTL
       
       @                        IN      NS      ns.ML1.internal.
-      ns                       IN      CNAME   bind-dns-udp.default.svc.cluster1.local
+      ns                       IN      A       127.13.10.91 #dummy value - gets updated by external dns controller
       rke00.mgr                IN      A       10.24.0.99
       rke01.mgr                IN      A       10.24.0.100
       rke-lb.mgr               IN      A       100.69.29.9
@@ -57,7 +57,7 @@ bindconfig:
                     any;
             };
             allow-transfer {
-                    none;
+                    any;
             };
             allow-update {
                     any;
@@ -65,11 +65,16 @@ bindconfig:
     };
     key "externaldns-key" {
         algorithm hmac-sha256;
-        secret "7dvscDQ0e6pwtQKclp4FUCDXcXUXMJBZaEd5qCCYlqM=";
+        secret "NI5Pc2N0JM+lWiWsCBU38SJysdmkrvGn0VfifD6uup0=";
     };
+
+    #    key "externaldns-key" {
+    #    algorithm hmac-sha256;
+    #    secret "7dvscDQ0e6pwtQKclp4FUCDXcXUXMJBZaEd5qCCYlqM=";
+    # };
     zone "ML1.internal" {
       type master;
-      file "/var/lib/bind/ML1.internal";
+      file "/etc/bind/zones/ML1.internal";
       allow-update { key "externaldns-key";};
     };
 
