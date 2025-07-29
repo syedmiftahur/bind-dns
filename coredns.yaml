@@ -1,0 +1,45 @@
+apiVersion: v1
+data:
+  Corefile: |-
+    .:53 {
+        errors
+        health {
+           lameduck 5s
+        }
+        ready
+        kubernetes cluster1.local in-addr.arpa ip6.arpa {
+           pods insecure
+           fallthrough in-addr.arpa ip6.arpa
+           ttl 30
+        }
+        prometheus :9153
+        forward . 172.31.47.240:53 {
+           max_concurrent 1000
+        }
+        cache 30
+        loop
+        reload
+        loadbalance
+    }
+    ML1.internal:53 {
+      log
+      forward . 172.31.47.240:53
+      errors
+      cache 30
+  
+    }
+#    ML1.internal.:53{
+#      log
+#      template IN A ML1.internal {
+#        match .*\.ML1\.internal
+#        answer "{{ .Name }} 60 IN CNAME bind-dns-tcpudp.default.svc.cluster1.local"
+#        fallthrough
+#      } 
+#      errors
+#      cache 30
+#    }  
+ 
+kind: ConfigMap
+metadata:
+  name: coredns
+  namespace: kube-system
